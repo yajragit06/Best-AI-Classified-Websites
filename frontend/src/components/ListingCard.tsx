@@ -1,7 +1,11 @@
+import { useState } from "react";
 import type { Listing } from "@lakasmarket/shared";
 import { SaleMode } from "@lakasmarket/shared";
+import { OfferForm } from "./OfferForm";
 
 export function ListingCard({ listing }: { listing: Listing }) {
+  const [offering, setOffering] = useState(false);
+
   return (
     <div className="card">
       <h3>{listing.title}</h3>
@@ -19,6 +23,16 @@ export function ListingCard({ listing }: { listing: Listing }) {
       </div>
       {listing.min_buyer_adab > 0 && (
         <div className="floor">Requires Adab score ≥ {listing.min_buyer_adab}</div>
+      )}
+
+      {offering ? (
+        <div style={{ marginTop: 12 }}>
+          <OfferForm listing={listing} onClose={() => setOffering(false)} />
+        </div>
+      ) : (
+        <button style={{ marginTop: 12 }} onClick={() => setOffering(true)}>
+          Make an offer
+        </button>
       )}
     </div>
   );
