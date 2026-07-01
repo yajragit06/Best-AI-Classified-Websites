@@ -46,6 +46,18 @@ LakasMarket/
 
 ## Getting started
 
+### Docker (everything at once)
+
+```bash
+docker compose up --build
+# API  → http://localhost:8000/docs
+# Web  → http://localhost:5173
+```
+
+This starts PostgreSQL, runs Alembic migrations, serves the FastAPI backend,
+and launches the Vite dev server. Set `OPENAI_API_KEY` in your shell to enable
+the Specs Guard.
+
 ### Backend
 
 ```bash

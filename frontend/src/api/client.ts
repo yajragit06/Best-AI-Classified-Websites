@@ -1,6 +1,26 @@
 // Thin API client. Platform-agnostic (uses fetch), so it can be reused as-is by
 // a React Native app.
-import type { Listing, UserPublic } from "@lakasmarket/shared";
+import type { Listing, SubscriptionTier, UserPublic } from "@lakasmarket/shared";
+
+export interface Offer {
+  id: number;
+  listing_id: number;
+  buyer_id: number;
+  amount: string;
+  is_take_tonight: boolean;
+  status: string;
+  delivery_fee: string;
+  passed_knowledge_gate: boolean;
+  created_at: string;
+}
+
+export interface Subscription {
+  tier: SubscriptionTier;
+  listing_limit: number | null;
+  has_specs_guard: boolean;
+  started_at: string;
+  renews_at: string | null;
+}
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
@@ -64,6 +84,29 @@ export const api = {
     return request(`/listings/${listingId}/offers`, {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+  },
+
+  myListings(): Promise<Listing[]> {
+    return request("/listings/mine");
+  },
+
+  offersForListing(listingId: number): Promise<Offer[]> {
+    return request(`/listings/${listingId}/offers`);
+  },
+
+  offerAction(offerId: number, action: "accept" | "decline" | "complete" | "report-ghost"): Promise<Offer> {
+    return request(`/offers/${offerId}/${action}`, { method: "POST" });
+  },
+
+  getSubscription(): Promise<Subscription> {
+    return request("/subscription");
+  },
+
+  upgrade(tier: SubscriptionTier): Promise<Subscription> {
+    return request("/subscription/upgrade", {
+      method: "POST",
+      body: JSON.stringify({ tier }),
     });
   },
 };

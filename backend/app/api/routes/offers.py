@@ -115,3 +115,85 @@ def list_offers_for_seller(
         .order_by(Offer.amount.desc())
     )
     return list(db.scalars(stmt).all())
+
+
+def _seller_offer(offer_id: int, db: Session, current: User) -> Offer:
+    """Fetch an offer, ensuring the caller is the listing's seller."""
+    offer = db.get(Offer, offer_id)
+    if offer is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Offer not found")
+    listing = db.get(Listing, offer.listing_id)
+    if listing is None or listing.seller_id != current.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your listing")
+    # Auto-rejected lowballs are invisible to the seller — treat as not found.
+    if offer.status == OfferStatus.AUTO_REJECTED:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Offer not found")
+    return offer
+
+
+@router.post("/offers/{offer_id}/accept", response_model=OfferPublic)
+def accept_offer(
+    offer_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+) -> Offer:
+    offer = _seller_offer(offer_id, db, current)
+    if offer.status != OfferStatus.PENDING:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Offer is no longer pending")
+    offer.status = OfferStatus.ACCEPTED
+    offer.listing.status = ListingStatus.RESERVED
+    db.commit()
+    db.refresh(offer)
+    return offer
+
+
+@router.post("/offers/{offer_id}/decline", response_model=OfferPublic)
+def decline_offer(
+    offer_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+) -> Offer:
+    offer = _seller_offer(offer_id, db, current)
+    if offer.status != OfferStatus.PENDING:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Offer is no longer pending")
+    offer.status = OfferStatus.DECLINED
+    db.commit()
+    db.refresh(offer)
+    return offer
+
+
+@router.post("/offers/{offer_id}/complete", response_model=OfferPublic)
+def complete_offer(
+    offer_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+) -> Offer:
+    """Mark an accepted deal as completed and reward both parties' Adab."""
+    offer = _seller_offer(offer_id, db, current)
+    if offer.status != OfferStatus.ACCEPTED:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Only accepted offers can be completed")
+    offer.listing.status = ListingStatus.SOLD
+    adab.apply_event(offer.buyer, AdabEventType.COMPLETED_DEAL)
+    adab.apply_event(current, AdabEventType.COMPLETED_DEAL)
+    db.commit()
+    db.refresh(offer)
+    return offer
+
+
+@router.post("/offers/{offer_id}/report-ghost", response_model=OfferPublic)
+def report_ghost(
+    offer_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+) -> Offer:
+    """Report a buyer who accepted then vanished ("Hilang kana tiup angin")."""
+    offer = _seller_offer(offer_id, db, current)
+    if offer.status != OfferStatus.ACCEPTED:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Can only report ghosting on accepted offers")
+    adab.apply_event(offer.buyer, AdabEventType.GHOSTED)
+    # Free the listing back up for other buyers.
+    offer.status = OfferStatus.DECLINED
+    offer.listing.status = ListingStatus.ACTIVE
+    db.commit()
+    db.refresh(offer)
+    return offer

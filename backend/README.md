@@ -49,8 +49,23 @@ Alembic migrations against `Base.metadata` instead.
 | POST | `/listings` | ✅ | Secure listing creation (tier-limited) |
 | GET | `/listings` | – | Browse active listings |
 | GET | `/listings/{id}` | – | Listing detail (quiz prompts, no answers) |
+| GET | `/listings/mine` | ✅ | The seller's own listings (any status) |
 | POST | `/listings/{id}/offers` | ✅ | Make an offer — runs Adab gate, Knowledge Gateway, logistics, and Anti-Lowball engine |
 | GET | `/listings/{id}/offers` | ✅ (seller) | Seller's offers (auto-rejected lowballs hidden) |
+| POST | `/offers/{id}/accept` | ✅ (seller) | Accept an offer → listing reserved |
+| POST | `/offers/{id}/decline` | ✅ (seller) | Decline an offer |
+| POST | `/offers/{id}/complete` | ✅ (seller) | Mark sold → rewards both parties' Adab |
+| POST | `/offers/{id}/report-ghost` | ✅ (seller) | Penalise a ghosting buyer's Adab |
+| GET | `/subscription` | ✅ | Current plan, limits, Specs Guard access |
+| POST | `/subscription/upgrade` | ✅ | Switch SaaS tier (billing hook point) |
+
+## Migrations
+
+```bash
+alembic upgrade head        # apply
+alembic downgrade base      # roll back
+alembic revision --autogenerate -m "message"   # new migration vs models
+```
 
 ## Tests
 

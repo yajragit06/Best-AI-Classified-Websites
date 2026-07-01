@@ -113,6 +113,20 @@ def list_active(
     return list(db.scalars(stmt).all())
 
 
+@router.get("/mine", response_model=list[ListingPublic])
+def my_listings(
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+) -> list[Listing]:
+    """The authenticated seller's own listings (any status), newest first."""
+    stmt = (
+        select(Listing)
+        .where(Listing.seller_id == current.id)
+        .order_by(Listing.created_at.desc())
+    )
+    return list(db.scalars(stmt).all())
+
+
 @router.get("/{listing_id}", response_model=ListingPublic)
 def get_listing(listing_id: int, db: Session = Depends(get_db)) -> Listing:
     listing = db.get(Listing, listing_id)
