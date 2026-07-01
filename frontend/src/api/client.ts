@@ -69,8 +69,11 @@ export const api = {
     return request("/auth/me");
   },
 
-  listListings(): Promise<Listing[]> {
-    return request("/listings");
+  listListings(filters: Record<string, string> = {}): Promise<Listing[]> {
+    const qs = new URLSearchParams(
+      Object.entries(filters).filter(([, v]) => v !== ""),
+    ).toString();
+    return request(`/listings${qs ? `?${qs}` : ""}`);
   },
 
   createListing(payload: Record<string, unknown>): Promise<Listing> {

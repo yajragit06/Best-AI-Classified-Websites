@@ -78,6 +78,17 @@ npm install
 npm run dev
 ```
 
+For a production build served by nginx:
+
+```bash
+docker build -f frontend/Dockerfile.prod \
+  --build-arg VITE_API_URL=https://api.your-domain.com \
+  -t lakasmarket-web .
+```
+
+Browsing supports search and filters:
+`GET /listings?q=keyboard&district=seria&sale_mode=fast&max_price=80`.
+
 ## Subscription tiers
 
 | Feature | Basic (Free) | Pro | Business |

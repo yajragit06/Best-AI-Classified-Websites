@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { UserPublic } from "@lakasmarket/shared";
 import { api } from "./api/client";
 import { Dashboard } from "./pages/Dashboard";
 import { SellerDashboard } from "./pages/SellerDashboard";
@@ -8,6 +9,7 @@ type Tab = "browse" | "mine" | "plan";
 
 export function App() {
   const [loggedIn, setLoggedIn] = useState(false);
+  const [me, setMe] = useState<UserPublic | null>(null);
   const [tab, setTab] = useState<Tab>("browse");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,6 +21,7 @@ export function App() {
     try {
       await api.login(email, password);
       setLoggedIn(true);
+      setMe(await api.me());
     } catch {
       setError("Login failed. Register first via the API if you have no account.");
     }
@@ -29,6 +32,12 @@ export function App() {
       <header className="app">
         <h1>LakasMarket</h1>
         <small>Brunei's anti-lowball marketplace</small>
+        {me && (
+          <div style={{ fontSize: 13, marginTop: 4 }}>
+            {me.display_name} · Your Adab {me.adab_score.toFixed(0)}/100 ·{" "}
+            {me.completed_deals} deals
+          </div>
+        )}
         {loggedIn && (
           <nav style={{ marginTop: 8, display: "flex", gap: 8 }}>
             <TabButton active={tab === "browse"} onClick={() => setTab("browse")}>

@@ -7,6 +7,17 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.models.enums import District, ListingStatus, SaleMode
 
 
+class SellerSummary(BaseModel):
+    """Public reputation snapshot shown to buyers on each listing."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    display_name: str
+    adab_score: float
+    completed_deals: int
+
+
 class KnowledgeQuestionIn(BaseModel):
     prompt: str = Field(min_length=3, max_length=300)
     options: list[str] = Field(min_length=2, max_length=6)
@@ -59,3 +70,4 @@ class ListingPublic(BaseModel):
     status: ListingStatus
     created_at: datetime
     knowledge_questions: list[KnowledgeQuestionPublic]
+    seller: SellerSummary

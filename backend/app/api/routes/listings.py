@@ -1,12 +1,14 @@
 """Secure listing creation and retrieval endpoints."""
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from decimal import Decimal
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, or_, select
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user
 from app.core import specs_guard
 from app.database import get_db
-from app.models.enums import ListingStatus, SubscriptionTier
+from app.models.enums import District, ListingStatus, SaleMode, SubscriptionTier
 from app.models.listing import KnowledgeQuestion, Listing
 from app.models.user import User
 from app.schemas.listing import ListingCreate, ListingPublic
@@ -100,16 +102,41 @@ def create_listing(
 @router.get("", response_model=list[ListingPublic])
 def list_active(
     db: Session = Depends(get_db),
+    q: str | None = Query(default=None, description="Free-text search on title/description"),
+    district: District | None = None,
+    category: str | None = None,
+    sale_mode: SaleMode | None = None,
+    min_price: Decimal | None = Query(default=None, ge=0),
+    max_price: Decimal | None = Query(default=None, ge=0),
     limit: int = 50,
     offset: int = 0,
 ) -> list[Listing]:
+    """Browse active listings with optional search and filters.
+
+    Eager-loads the seller and quiz so serialization (including the buyer-facing
+    Adab snapshot) doesn't trigger N+1 queries.
+    """
     stmt = (
         select(Listing)
         .where(Listing.status == ListingStatus.ACTIVE)
-        .order_by(Listing.created_at.desc())
-        .limit(min(limit, 100))
-        .offset(offset)
+        .options(selectinload(Listing.seller), selectinload(Listing.knowledge_questions))
     )
+
+    if q:
+        like = f"%{q}%"
+        stmt = stmt.where(or_(Listing.title.ilike(like), Listing.description.ilike(like)))
+    if district is not None:
+        stmt = stmt.where(Listing.district == district)
+    if category:
+        stmt = stmt.where(Listing.category == category)
+    if sale_mode is not None:
+        stmt = stmt.where(Listing.sale_mode == sale_mode)
+    if min_price is not None:
+        stmt = stmt.where(Listing.list_price >= min_price)
+    if max_price is not None:
+        stmt = stmt.where(Listing.list_price <= max_price)
+
+    stmt = stmt.order_by(Listing.created_at.desc()).limit(min(limit, 100)).offset(offset)
     return list(db.scalars(stmt).all())
 
 

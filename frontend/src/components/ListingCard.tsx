@@ -9,6 +9,13 @@ export function ListingCard({ listing }: { listing: Listing }) {
   return (
     <div className="card">
       <h3>{listing.title}</h3>
+      <div style={{ fontSize: 13, color: "#4a5568", marginBottom: 6 }}>
+        Seller: <strong>{listing.seller.display_name}</strong>{" "}
+        <span title="Adab (courtesy) score">
+          · Adab {listing.seller.adab_score.toFixed(0)}/100
+        </span>{" "}
+        · {listing.seller.completed_deals} deals
+      </div>
       <div>
         <span className="badge">{listing.district}</span>
         {listing.sale_mode === SaleMode.Fast && <span className="badge">Take Tonight</span>}

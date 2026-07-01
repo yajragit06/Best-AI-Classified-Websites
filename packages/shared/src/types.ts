@@ -34,9 +34,17 @@ export interface KnowledgeQuestion {
   ai_generated: boolean;
 }
 
+export interface SellerSummary {
+  id: number;
+  display_name: string;
+  adab_score: number;
+  completed_deals: number;
+}
+
 export interface Listing {
   id: number;
   seller_id: number;
+  seller: SellerSummary;
   title: string;
   description: string;
   category: string | null;
