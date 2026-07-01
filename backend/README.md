@@ -73,4 +73,7 @@ alembic revision --autogenerate -m "message"   # new migration vs models
 pytest
 ```
 
-Covers the Anti-Lowball floor/speed logic, logistics fees, and Adab scoring.
+Covers the Anti-Lowball floor/speed logic, logistics fees, and Adab scoring
+(unit tests), plus end-to-end API flows (auth, listing creation + tier limits,
+the offer pipeline, seller actions, and subscription upgrades) via `TestClient`
+against an in-memory SQLite database — no PostgreSQL needed to run the suite.
