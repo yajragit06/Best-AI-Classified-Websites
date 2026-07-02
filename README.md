@@ -40,9 +40,15 @@ LakasMarket/
 │       ├── core/       # Domain engines (anti-lowball, adab, logistics, specs guard)
 │       └── api/        # Routers and dependencies
 ├── frontend/           # React (Vite) web dashboard
+├── mobile/             # React Native (Expo) app — reuses packages/shared
 └── packages/
-    └── shared/         # Cross-platform TS logic reused by web + React Native
+    └── shared/         # Cross-platform TS: types, anti-lowball logic, and the
+                        # API client, reused by both web and mobile
 ```
+
+The web and mobile apps share one API client and one set of domain types
+(`packages/shared`), so they can't drift apart: each app is just a thin
+platform wrapper — `createApiClient(baseUrl)` — over the same logic.
 
 ## Getting started
 

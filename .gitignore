@@ -16,6 +16,13 @@ build/
 .vite/
 *.local
 
+# Expo / React Native
+.expo/
+.expo-shared/
+*.jks
+*.p8
+*.mobileprovision
+
 # Editors / OS
 .vscode/
 .idea/

@@ -71,3 +71,25 @@ export interface UserPublic {
   completed_deals: number;
   created_at: string;
 }
+
+export interface Offer {
+  id: number;
+  listing_id: number;
+  buyer_id: number;
+  amount: string;
+  is_take_tonight: boolean;
+  status: string;
+  delivery_fee: string;
+  passed_knowledge_gate: boolean;
+  created_at: string;
+}
+
+export interface Subscription {
+  tier: SubscriptionTier;
+  listing_limit: number | null;
+  has_specs_guard: boolean;
+  started_at: string;
+  renews_at: string | null;
+}
+
+export type OfferAction = "accept" | "decline" | "complete" | "report-ghost";
