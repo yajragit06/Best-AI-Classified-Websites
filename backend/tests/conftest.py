@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.config import settings
+from app.core.rate_limit import RateLimiter
 from app.database import Base, get_db
 from app.main import app
 
@@ -35,6 +36,8 @@ def client():
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
+    # Limiters key on client IP; every TestClient shares one, so clear between tests.
+    RateLimiter.reset_all()
     # No context manager -> lifespan events don't fire (we don't want them here).
     yield TestClient(app)
     app.dependency_overrides.clear()

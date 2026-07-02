@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user
 from app.core import specs_guard
+from app.core.rate_limit import RateLimiter
 from app.database import get_db
 from app.models.enums import District, ListingStatus, SaleMode, SubscriptionTier
 from app.models.listing import KnowledgeQuestion, Listing
@@ -14,6 +15,9 @@ from app.models.user import User
 from app.schemas.listing import AskAnswer, AskRequest, ListingCreate, ListingPublic
 
 router = APIRouter(prefix="/listings", tags=["listings"])
+
+# Cap LLM spend: 10 Specs Guard questions per minute per IP.
+ask_limiter = RateLimiter(times=10, seconds=60)
 
 
 def _active_listing_count(db: Session, seller_id: int) -> int:
@@ -154,7 +158,7 @@ def my_listings(
     return list(db.scalars(stmt).all())
 
 
-@router.post("/{listing_id}/ask", response_model=AskAnswer)
+@router.post("/{listing_id}/ask", response_model=AskAnswer, dependencies=[Depends(ask_limiter)])
 def ask_specs_guard(
     listing_id: int,
     payload: AskRequest,

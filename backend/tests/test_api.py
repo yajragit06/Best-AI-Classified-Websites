@@ -175,6 +175,19 @@ def test_specs_guard_ask_gated_by_seller_plan(client):
     assert r2.json()["specs_guard_enabled"] is True
 
 
+def test_login_rate_limited(client):
+    client.post(
+        "/auth/register",
+        json={"email": "brute@example.com", "password": "password123", "display_name": "brute"},
+    )
+    # 10 attempts per minute are allowed; the 11th gets 429.
+    for _ in range(10):
+        res = client.post("/auth/login", data={"username": "brute@example.com", "password": "wrong"})
+        assert res.status_code == 401
+    res = client.post("/auth/login", data={"username": "brute@example.com", "password": "wrong"})
+    assert res.status_code == 429
+
+
 def test_subscription_upgrade(client):
     headers = auth_headers(client, "seller@example.com")
     assert client.get("/subscription", headers=headers).json()["tier"] == "basic"
