@@ -7,6 +7,16 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.models.enums import District, ListingStatus, SaleMode
 
 
+class AskRequest(BaseModel):
+    question: str = Field(min_length=3, max_length=300)
+
+
+class AskAnswer(BaseModel):
+    answer: str
+    # False when the seller's plan doesn't include the AI Specs Guard.
+    specs_guard_enabled: bool
+
+
 class SellerSummary(BaseModel):
     """Public reputation snapshot shown to buyers on each listing."""
 

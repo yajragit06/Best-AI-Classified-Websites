@@ -159,6 +159,22 @@ def test_report_ghost_penalises_buyer(client):
     assert buyer_me["reliability_score"] < 70.0
 
 
+def test_specs_guard_ask_gated_by_seller_plan(client):
+    seller = auth_headers(client, "seller@example.com")
+    buyer = auth_headers(client, "buyer@example.com")
+    lid = _create_listing(client, seller)
+
+    # Basic seller -> Specs Guard disabled, buyer nudged to read the description.
+    r = client.post(f"/listings/{lid}/ask", json={"question": "Is it wired?"}, headers=buyer)
+    assert r.status_code == 200
+    assert r.json()["specs_guard_enabled"] is False
+
+    # Upgrade the seller to Pro -> Specs Guard enabled.
+    client.post("/subscription/upgrade", json={"tier": "pro"}, headers=seller)
+    r2 = client.post(f"/listings/{lid}/ask", json={"question": "Is it wired?"}, headers=buyer)
+    assert r2.json()["specs_guard_enabled"] is True
+
+
 def test_subscription_upgrade(client):
     headers = auth_headers(client, "seller@example.com")
     assert client.get("/subscription", headers=headers).json()["tier"] == "basic"

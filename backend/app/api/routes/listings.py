@@ -11,7 +11,7 @@ from app.database import get_db
 from app.models.enums import District, ListingStatus, SaleMode, SubscriptionTier
 from app.models.listing import KnowledgeQuestion, Listing
 from app.models.user import User
-from app.schemas.listing import ListingCreate, ListingPublic
+from app.schemas.listing import AskAnswer, AskRequest, ListingCreate, ListingPublic
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
@@ -152,6 +152,35 @@ def my_listings(
         .order_by(Listing.created_at.desc())
     )
     return list(db.scalars(stmt).all())
+
+
+@router.post("/{listing_id}/ask", response_model=AskAnswer)
+def ask_specs_guard(
+    listing_id: int,
+    payload: AskRequest,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+) -> AskAnswer:
+    """Ask the AI Specs Guard a question about a listing.
+
+    Only answers automatically when the *seller* is on a plan that includes the
+    Specs Guard (Pro/Business). Otherwise the buyer is nudged to read the
+    description — the whole point of reducing redundant questions.
+    """
+    listing = db.get(Listing, listing_id)
+    if listing is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Listing not found")
+
+    seller_sub = listing.seller.subscription
+    if seller_sub is None or not seller_sub.has_specs_guard:
+        return AskAnswer(
+            answer="This seller's plan doesn't include the AI Specs Guard. "
+            "Please check the description — it likely already answers this.",
+            specs_guard_enabled=False,
+        )
+
+    answer = specs_guard.answer_question(listing.description, payload.question)
+    return AskAnswer(answer=answer, specs_guard_enabled=True)
 
 
 @router.get("/{listing_id}", response_model=ListingPublic)

@@ -1,10 +1,29 @@
 import { useState } from "react";
 import type { Listing } from "@lakasmarket/shared";
 import { SaleMode } from "@lakasmarket/shared";
+import { api } from "../api/client";
 import { OfferForm } from "./OfferForm";
 
 export function ListingCard({ listing }: { listing: Listing }) {
   const [offering, setOffering] = useState(false);
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState<string | null>(null);
+  const [asking, setAsking] = useState(false);
+
+  async function ask(e: React.FormEvent) {
+    e.preventDefault();
+    if (!question.trim()) return;
+    setAsking(true);
+    setAnswer(null);
+    try {
+      const res = await api.askSpecsGuard(listing.id, question);
+      setAnswer(res.answer);
+    } catch (err) {
+      setAnswer((err as Error).message);
+    } finally {
+      setAsking(false);
+    }
+  }
 
   return (
     <div className="card">
@@ -30,6 +49,26 @@ export function ListingCard({ listing }: { listing: Listing }) {
       </div>
       {listing.min_buyer_adab > 0 && (
         <div className="floor">Requires Adab score ≥ {listing.min_buyer_adab}</div>
+      )}
+
+      <form onSubmit={ask} style={{ marginTop: 12 }}>
+        <label>Ask the Specs Guard (AI)</label>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            placeholder="e.g. Does it come with the box?"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            style={{ margin: 0 }}
+          />
+          <button type="submit" className="secondary" disabled={asking}>
+            {asking ? "…" : "Ask"}
+          </button>
+        </div>
+      </form>
+      {answer && (
+        <div className="badge" style={{ display: "block", marginTop: 8, whiteSpace: "normal" }}>
+          🤖 {answer}
+        </div>
       )}
 
       {offering ? (

@@ -90,6 +90,16 @@ export const api = {
     });
   },
 
+  askSpecsGuard(
+    listingId: number,
+    question: string,
+  ): Promise<{ answer: string; specs_guard_enabled: boolean }> {
+    return request(`/listings/${listingId}/ask`, {
+      method: "POST",
+      body: JSON.stringify({ question }),
+    });
+  },
+
   myListings(): Promise<Listing[]> {
     return request("/listings/mine");
   },

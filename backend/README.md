@@ -50,6 +50,7 @@ Alembic migrations against `Base.metadata` instead.
 | GET | `/listings` | – | Browse active listings |
 | GET | `/listings/{id}` | – | Listing detail (quiz prompts, no answers) |
 | GET | `/listings/mine` | ✅ | The seller's own listings (any status) |
+| POST | `/listings/{id}/ask` | ✅ | Ask the AI Specs Guard (only answers if the seller's plan includes it) |
 | POST | `/listings/{id}/offers` | ✅ | Make an offer — runs Adab gate, Knowledge Gateway, logistics, and Anti-Lowball engine |
 | GET | `/listings/{id}/offers` | ✅ (seller) | Seller's offers (auto-rejected lowballs hidden) |
 | POST | `/offers/{id}/accept` | ✅ (seller) | Accept an offer → listing reserved |
@@ -58,6 +59,16 @@ Alembic migrations against `Base.metadata` instead.
 | POST | `/offers/{id}/report-ghost` | ✅ (seller) | Penalise a ghosting buyer's Adab |
 | GET | `/subscription` | ✅ | Current plan, limits, Specs Guard access |
 | POST | `/subscription/upgrade` | ✅ | Switch SaaS tier (billing hook point) |
+
+## Demo data
+
+Seed two demo users (a Pro seller in Bandar, a Basic buyer in Seria), a wired
+keyboard listing with a knowledge question, and two offers (a hidden lowball and
+a fair offer with an auto-computed Seria delivery fee):
+
+```bash
+python scripts/seed.py    # idempotent; login password is "password123"
+```
 
 ## Migrations
 
