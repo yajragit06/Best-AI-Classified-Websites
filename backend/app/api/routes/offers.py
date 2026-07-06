@@ -147,15 +147,21 @@ def accept_offer(
     offer = _seller_offer(offer_id, db, current)
     if offer.status != OfferStatus.PENDING:
         raise HTTPException(status.HTTP_409_CONFLICT, "Offer is no longer pending")
-    # A reserved/sold listing can't take a second acceptance — un-reserve it
-    # first (report-ghost or decline the current one).
-    if offer.listing.status != ListingStatus.ACTIVE:
+
+    # Lock the listing row so two concurrent accepts can't both reserve it and
+    # double-sell the item. The locking read serializes the check-and-set:
+    # whoever commits first flips the listing to RESERVED, the other then reads
+    # RESERVED under the lock and is rejected. SQLite ignores FOR UPDATE (fine
+    # for the single-connection dev/test setup); Postgres enforces it.
+    listing = db.get(Listing, offer.listing_id, with_for_update=True)
+    if listing is None or listing.status != ListingStatus.ACTIVE:
+        state = listing.status.value if listing else "gone"
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"Listing is {offer.listing.status.value}; it must be active to accept an offer",
+            f"Listing is {state}; it must be active to accept an offer.",
         )
     offer.status = OfferStatus.ACCEPTED
-    offer.listing.status = ListingStatus.RESERVED
+    listing.status = ListingStatus.RESERVED
     db.commit()
     db.refresh(offer)
     return offer
