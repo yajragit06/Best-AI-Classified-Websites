@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core import adab
 from app.core.anti_lowball import evaluate_offer
+from app.core.lifecycle import expire_stale_offers
 from app.core.knowledge_gateway import grade_quiz
 from app.core.logistics import delivery_fee
 from app.database import get_db
@@ -114,7 +115,10 @@ def list_offers_for_seller(
         .where(Offer.listing_id == listing_id, Offer.status != OfferStatus.AUTO_REJECTED)
         .order_by(Offer.amount.desc())
     )
-    return list(db.scalars(stmt).all())
+    offers = list(db.scalars(stmt).all())
+    if expire_stale_offers(offers):
+        db.commit()
+    return offers
 
 
 def _seller_offer(offer_id: int, db: Session, current: User) -> Offer:
@@ -128,6 +132,9 @@ def _seller_offer(offer_id: int, db: Session, current: User) -> Offer:
     # Auto-rejected lowballs are invisible to the seller — treat as not found.
     if offer.status == OfferStatus.AUTO_REJECTED:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Offer not found")
+    # Lapse stale "take tonight" offers before any action on them.
+    if expire_stale_offers([offer]):
+        db.commit()
     return offer
 
 
@@ -140,6 +147,13 @@ def accept_offer(
     offer = _seller_offer(offer_id, db, current)
     if offer.status != OfferStatus.PENDING:
         raise HTTPException(status.HTTP_409_CONFLICT, "Offer is no longer pending")
+    # A reserved/sold listing can't take a second acceptance — un-reserve it
+    # first (report-ghost or decline the current one).
+    if offer.listing.status != ListingStatus.ACTIVE:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Listing is {offer.listing.status.value}; it must be active to accept an offer",
+        )
     offer.status = OfferStatus.ACCEPTED
     offer.listing.status = ListingStatus.RESERVED
     db.commit()
@@ -173,6 +187,10 @@ def complete_offer(
     if offer.status != OfferStatus.ACCEPTED:
         raise HTTPException(status.HTTP_409_CONFLICT, "Only accepted offers can be completed")
     offer.listing.status = ListingStatus.SOLD
+    # The item is gone — close out every other still-pending offer.
+    for other in offer.listing.offers:
+        if other.id != offer.id and other.status == OfferStatus.PENDING:
+            other.status = OfferStatus.DECLINED
     adab.apply_event(offer.buyer, AdabEventType.COMPLETED_DEAL)
     adab.apply_event(current, AdabEventType.COMPLETED_DEAL)
     db.commit()

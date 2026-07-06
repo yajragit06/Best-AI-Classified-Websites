@@ -57,8 +57,15 @@ Alembic migrations against `Base.metadata` instead.
 | POST | `/offers/{id}/decline` | ✅ (seller) | Decline an offer |
 | POST | `/offers/{id}/complete` | ✅ (seller) | Mark sold → rewards both parties' Adab |
 | POST | `/offers/{id}/report-ghost` | ✅ (seller) | Penalise a ghosting buyer's Adab |
+| POST | `/listings/bulk` | ✅ (Business) | Create up to 50 listings in one call |
+| GET | `/analytics/seller` | ✅ (Pro+) | Protection & sales stats (lowballs blocked, offer strength) |
 | GET | `/subscription` | ✅ | Current plan, limits, Specs Guard access |
 | POST | `/subscription/upgrade` | ✅ | Switch SaaS tier (billing hook point) |
+
+Tier rules enforced at the API: Basic is capped at 5 active listings and the
+standard 20% floor; custom floors are Pro+; bulk upload is Business-only.
+Pending "take tonight" offers lapse to `expired` after 24h (lazy, on seller
+reads/actions).
 
 ## Demo data
 

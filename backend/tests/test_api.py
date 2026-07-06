@@ -175,6 +175,70 @@ def test_specs_guard_ask_gated_by_seller_plan(client):
     assert r2.json()["specs_guard_enabled"] is True
 
 
+def test_basic_tier_cannot_set_custom_floor(client):
+    headers = auth_headers(client, "seller@example.com")
+    res = client.post("/listings", json={**LISTING, "floor_percent": 40}, headers=headers)
+    assert res.status_code == 402
+
+    client.post("/subscription/upgrade", json={"tier": "pro"}, headers=headers)
+    res = client.post("/listings", json={**LISTING, "floor_percent": 40}, headers=headers)
+    assert res.status_code == 201
+    assert res.json()["hard_floor_price"] == 60.0
+
+
+def test_bulk_upload_is_business_only(client):
+    headers = auth_headers(client, "seller@example.com")
+    bulk = {"listings": [{**LISTING, "title": f"Bulk item {i}"} for i in range(3)]}
+
+    assert client.post("/listings/bulk", json=bulk, headers=headers).status_code == 402
+
+    client.post("/subscription/upgrade", json={"tier": "business"}, headers=headers)
+    res = client.post("/listings/bulk", json=bulk, headers=headers)
+    assert res.status_code == 201
+    assert len(res.json()) == 3
+
+
+def test_cannot_accept_second_offer_while_reserved(client):
+    seller = auth_headers(client, "seller@example.com")
+    buyer = auth_headers(client, "buyer@example.com")
+    lid = _create_listing(client, seller)
+    client.post(f"/listings/{lid}/offers", json={"amount": 85}, headers=buyer)
+    client.post(f"/listings/{lid}/offers", json={"amount": 90}, headers=buyer)
+
+    offers = client.get(f"/listings/{lid}/offers", headers=seller).json()
+    first, second = offers[0]["id"], offers[1]["id"]
+
+    assert client.post(f"/offers/{first}/accept", headers=seller).status_code == 200
+    # Listing is now reserved — a second acceptance must be blocked.
+    assert client.post(f"/offers/{second}/accept", headers=seller).status_code == 409
+
+    # Completing the deal closes out the remaining pending offer.
+    client.post(f"/offers/{first}/complete", headers=seller)
+    statuses = {o["id"]: o["status"] for o in client.get(f"/listings/{lid}/offers", headers=seller).json()}
+    assert statuses[second] == "declined"
+
+
+def test_seller_analytics_gated_and_counts(client):
+    seller = auth_headers(client, "seller@example.com")
+    buyer = auth_headers(client, "buyer@example.com")
+
+    # Basic tier: analytics is paywalled.
+    assert client.get("/analytics/seller", headers=seller).status_code == 402
+
+    client.post("/subscription/upgrade", json={"tier": "pro"}, headers=seller)
+    # Pro sellers get auto-generated quiz questions; disable so the buyer's
+    # bare offers pass the gateway and reach the anti-lowball engine.
+    lid = _create_listing(client, seller, auto_generate_questions=False)
+    client.post(f"/listings/{lid}/offers", json={"amount": 25}, headers=buyer)  # lowball
+    client.post(f"/listings/{lid}/offers", json={"amount": 90}, headers=buyer)  # fair
+
+    stats = client.get("/analytics/seller", headers=seller).json()
+    assert stats["active_listings"] == 1
+    assert stats["lowballs_blocked"] == 1
+    assert stats["pending_offers"] == 1
+    assert stats["avg_offer_percent_of_list"] == 90.0
+
+
 def test_login_rate_limited(client):
     client.post(
         "/auth/register",

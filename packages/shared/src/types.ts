@@ -93,3 +93,14 @@ export interface Subscription {
 }
 
 export type OfferAction = "accept" | "decline" | "complete" | "report-ghost";
+
+export interface SellerAnalytics {
+  active_listings: number;
+  reserved_listings: number;
+  sold_listings: number;
+  lowballs_blocked: number;
+  pending_offers: number;
+  accepted_offers: number;
+  expired_take_tonight_offers: number;
+  avg_offer_percent_of_list: number | null;
+}

@@ -61,6 +61,12 @@ class ListingCreate(BaseModel):
     auto_generate_questions: bool = True
 
 
+class BulkListingCreate(BaseModel):
+    """Business-tier bulk upload: up to 50 listings in one request."""
+
+    listings: list[ListingCreate] = Field(min_length=1, max_length=50)
+
+
 class ListingPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

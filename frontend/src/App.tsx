@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { UserPublic } from "@lakasmarket/shared";
+import { District } from "@lakasmarket/shared";
 import { api } from "./api/client";
 import { Dashboard } from "./pages/Dashboard";
 import { SellerDashboard } from "./pages/SellerDashboard";
@@ -11,19 +12,38 @@ export function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [me, setMe] = useState<UserPublic | null>(null);
   const [tab, setTab] = useState<Tab>("browse");
+  const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [district, setDistrict] = useState<District>(District.Bandar);
   const [error, setError] = useState<string | null>(null);
 
-  async function login(e: React.FormEvent) {
+  async function finishLogin() {
+    await api.login(email, password);
+    setLoggedIn(true);
+    setMe(await api.me());
+  }
+
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     try {
-      await api.login(email, password);
-      setLoggedIn(true);
-      setMe(await api.me());
-    } catch {
-      setError("Login failed. Register first via the API if you have no account.");
+      if (mode === "register") {
+        await api.register({
+          email,
+          password,
+          display_name: displayName,
+          home_district: district,
+        });
+      }
+      await finishLogin();
+    } catch (err) {
+      setError(
+        mode === "register"
+          ? (err as Error).message
+          : "Login failed. Check your email and password, or create an account.",
+      );
     }
   }
 
@@ -55,8 +75,29 @@ export function App() {
 
       {!loggedIn ? (
         <div className="container">
-          <form className="card" onSubmit={login}>
-            <h3>Sign in</h3>
+          <form className="card" onSubmit={submit}>
+            <h3>{mode === "login" ? "Sign in" : "Create your account"}</h3>
+            {mode === "register" && (
+              <>
+                <label>Display name</label>
+                <input
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  required
+                />
+                <label>Home district (used for delivery fees)</label>
+                <select
+                  value={district}
+                  onChange={(e) => setDistrict(e.target.value as District)}
+                >
+                  {Object.values(District).map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
             <label>Email</label>
             <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
             <label>Password</label>
@@ -64,10 +105,22 @@ export function App() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               type="password"
+              minLength={8}
               required
             />
             {error && <div className="warn">{error}</div>}
-            <button>Sign in</button>
+            <button>{mode === "login" ? "Sign in" : "Create account"}</button>
+            <button
+              type="button"
+              className="secondary"
+              style={{ marginLeft: 8 }}
+              onClick={() => {
+                setMode(mode === "login" ? "register" : "login");
+                setError(null);
+              }}
+            >
+              {mode === "login" ? "New here? Create an account" : "Have an account? Sign in"}
+            </button>
           </form>
         </div>
       ) : tab === "browse" ? (

@@ -6,6 +6,7 @@ import type {
   Listing,
   Offer,
   OfferAction,
+  SellerAnalytics,
   Subscription,
   SubscriptionTier,
   UserPublic,
@@ -46,6 +47,8 @@ export interface ApiClient {
   offerAction(offerId: number, action: OfferAction): Promise<Offer>;
   getSubscription(): Promise<Subscription>;
   upgrade(tier: SubscriptionTier): Promise<Subscription>;
+  sellerAnalytics(): Promise<SellerAnalytics>;
+  bulkCreateListings(listings: Record<string, unknown>[]): Promise<Listing[]>;
 }
 
 export function createApiClient(baseUrl: string, tokens: TokenStore = memoryTokenStore()): ApiClient {
@@ -127,6 +130,14 @@ export function createApiClient(baseUrl: string, tokens: TokenStore = memoryToke
 
     upgrade(tier) {
       return request("/subscription/upgrade", { method: "POST", body: JSON.stringify({ tier }) });
+    },
+
+    sellerAnalytics() {
+      return request("/analytics/seller");
+    },
+
+    bulkCreateListings(listings) {
+      return request("/listings/bulk", { method: "POST", body: JSON.stringify({ listings }) });
     },
   };
 }

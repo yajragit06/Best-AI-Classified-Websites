@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Listing } from "@lakasmarket/shared";
+import type { Listing, SellerAnalytics } from "@lakasmarket/shared";
 import { api, type Offer } from "../api/client";
 
 // Seller's view of their own listings and the offers on them. Auto-rejected
@@ -7,12 +7,22 @@ import { api, type Offer } from "../api/client";
 export function SellerDashboard() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<SellerAnalytics | null>(null);
+  const [statsNote, setStatsNote] = useState<string | null>(null);
 
   async function refresh() {
     try {
       setListings(await api.myListings());
     } catch (err) {
       setError((err as Error).message);
+    }
+    try {
+      setStats(await api.sellerAnalytics());
+      setStatsNote(null);
+    } catch (err) {
+      // Basic tier gets a 402 upsell instead of numbers.
+      setStats(null);
+      setStatsNote((err as Error).message);
     }
   }
 
@@ -23,11 +33,42 @@ export function SellerDashboard() {
   return (
     <div className="container">
       <h2>My listings</h2>
+      {stats ? (
+        <div className="card" style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+          <Stat label="🛡️ Lowballs blocked" value={stats.lowballs_blocked} />
+          <Stat label="Pending offers" value={stats.pending_offers} />
+          <Stat label="Sold" value={stats.sold_listings} />
+          <Stat
+            label="Avg offer vs list"
+            value={
+              stats.avg_offer_percent_of_list === null
+                ? "—"
+                : `${stats.avg_offer_percent_of_list}%`
+            }
+          />
+          <Stat label="Expired 'tonight' offers" value={stats.expired_take_tonight_offers} />
+        </div>
+      ) : (
+        statsNote && (
+          <div className="card" style={{ color: "#4a5568" }}>
+            {statsNote}
+          </div>
+        )
+      )}
       {error && <div className="warn">{error}</div>}
       {listings.length === 0 && <p>You have no listings yet.</p>}
       {listings.map((l) => (
         <SellerListingRow key={l.id} listing={l} />
       ))}
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div>
+      <div style={{ fontSize: 22, fontWeight: 700 }}>{value}</div>
+      <div style={{ fontSize: 12, color: "#4a5568" }}>{label}</div>
     </div>
   );
 }

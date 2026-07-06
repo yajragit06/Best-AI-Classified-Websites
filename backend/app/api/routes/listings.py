@@ -10,9 +10,16 @@ from app.core import specs_guard
 from app.core.rate_limit import RateLimiter
 from app.database import get_db
 from app.models.enums import District, ListingStatus, SaleMode, SubscriptionTier
-from app.models.listing import KnowledgeQuestion, Listing
+from app.models.listing import DEFAULT_FLOOR_PERCENT, KnowledgeQuestion, Listing
+from app.models.subscription import Subscription
 from app.models.user import User
-from app.schemas.listing import AskAnswer, AskRequest, ListingCreate, ListingPublic
+from app.schemas.listing import (
+    AskAnswer,
+    AskRequest,
+    BulkListingCreate,
+    ListingCreate,
+    ListingPublic,
+)
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
@@ -28,31 +35,20 @@ def _active_listing_count(db: Session, seller_id: int) -> int:
     )
 
 
-@router.post("", response_model=ListingPublic, status_code=status.HTTP_201_CREATED)
-def create_listing(
-    payload: ListingCreate,
-    db: Session = Depends(get_db),
-    current: User = Depends(get_current_user),
-) -> Listing:
-    """Create a listing, enforcing the seller's SaaS tier limits.
-
-    Requires authentication (secure creation). Enforces the Basic-tier active
-    listing cap, then attaches Product Knowledge Gateway questions — either the
-    seller's own, or AI-generated ones via the Specs Guard (Pro/Business).
-    """
-    sub = current.subscription
-    tier = sub.tier if sub else SubscriptionTier.BASIC
-    limit = sub.listing_limit if sub else 5
-
-    if limit is not None and _active_listing_count(db, current.id) >= limit:
+def _check_floor_allowed(payload: ListingCreate, tier: SubscriptionTier) -> None:
+    """Basic sellers get the standard floor only; custom floors are Pro+."""
+    if tier == SubscriptionTier.BASIC and payload.floor_percent != DEFAULT_FLOOR_PERCENT:
         raise HTTPException(
             status.HTTP_402_PAYMENT_REQUIRED,
-            f"Your {tier.value} plan allows up to {limit} active listings. "
-            "Upgrade to Pro for unlimited listings.",
+            f"The Basic plan uses the standard {DEFAULT_FLOOR_PERCENT:.0f}% price floor. "
+            "Upgrade to Pro to set a custom Hard Floor.",
         )
 
+
+def _build_listing(payload: ListingCreate, seller_id: int, sub: Subscription | None) -> Listing:
+    """Construct a Listing (with quiz questions) from a validated payload."""
     listing = Listing(
-        seller_id=current.id,
+        seller_id=seller_id,
         title=payload.title,
         description=payload.description,
         category=payload.category,
@@ -96,11 +92,64 @@ def create_listing(
                         ai_generated=True,
                     )
                 )
+    return listing
 
+
+@router.post("", response_model=ListingPublic, status_code=status.HTTP_201_CREATED)
+def create_listing(
+    payload: ListingCreate,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+) -> Listing:
+    """Create a listing, enforcing the seller's SaaS tier limits.
+
+    Requires authentication (secure creation). Enforces the Basic-tier active
+    listing cap and standard floor, then attaches Product Knowledge Gateway
+    questions — the seller's own, or AI-generated via Specs Guard (Pro+).
+    """
+    sub = current.subscription
+    tier = sub.tier if sub else SubscriptionTier.BASIC
+    limit = sub.listing_limit if sub else 5
+
+    if limit is not None and _active_listing_count(db, current.id) >= limit:
+        raise HTTPException(
+            status.HTTP_402_PAYMENT_REQUIRED,
+            f"Your {tier.value} plan allows up to {limit} active listings. "
+            "Upgrade to Pro for unlimited listings.",
+        )
+    _check_floor_allowed(payload, tier)
+
+    listing = _build_listing(payload, current.id, sub)
     db.add(listing)
     db.commit()
     db.refresh(listing)
     return listing
+
+
+@router.post("/bulk", response_model=list[ListingPublic], status_code=status.HTTP_201_CREATED)
+def bulk_create_listings(
+    payload: BulkListingCreate,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+) -> list[Listing]:
+    """Create up to 50 listings in one call — a Business-tier tool.
+
+    AI question generation is skipped in bulk (cost control); sellers supply
+    their own questions per listing or add them later.
+    """
+    sub = current.subscription
+    if sub is None or sub.tier != SubscriptionTier.BUSINESS:
+        raise HTTPException(
+            status.HTTP_402_PAYMENT_REQUIRED,
+            "Bulk upload is a Business-plan feature.",
+        )
+
+    listings = [_build_listing(item, current.id, sub=None) for item in payload.listings]
+    db.add_all(listings)
+    db.commit()
+    for listing in listings:
+        db.refresh(listing)
+    return listings
 
 
 @router.get("", response_model=list[ListingPublic])
