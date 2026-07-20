@@ -3,9 +3,11 @@ import type { Listing } from "@lakasmarket/shared";
 import { SaleMode } from "@lakasmarket/shared";
 import { api } from "../api/client";
 import { OfferForm } from "./OfferForm";
+import { MessageSellerForm } from "./MessageSellerForm";
 
 export function ListingCard({ listing }: { listing: Listing }) {
   const [offering, setOffering] = useState(false);
+  const [messaging, setMessaging] = useState(false);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
@@ -71,14 +73,30 @@ export function ListingCard({ listing }: { listing: Listing }) {
         </div>
       )}
 
+      {messaging && (
+        <div style={{ marginTop: 12 }}>
+          <MessageSellerForm
+            listing={listing}
+            onClose={() => setMessaging(false)}
+            onStarted={() => {}}
+          />
+        </div>
+      )}
+
       {offering ? (
         <div style={{ marginTop: 12 }}>
           <OfferForm listing={listing} onClose={() => setOffering(false)} />
         </div>
       ) : (
-        <button style={{ marginTop: 12 }} onClick={() => setOffering(true)}>
-          Make an offer
-        </button>
+        <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+          <button onClick={() => setOffering(true)}>Make an offer</button>
+          <button
+            className="secondary"
+            onClick={() => setMessaging((m) => !m)}
+          >
+            Message seller
+          </button>
+        </div>
       )}
     </div>
   );

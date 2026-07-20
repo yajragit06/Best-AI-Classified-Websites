@@ -13,6 +13,9 @@ class SellerAnalytics(BaseModel):
     pending_offers: int
     accepted_offers: int
     expired_take_tonight_offers: int
+    # Chat health (PRD §7 ghosting rate).
+    conversations: int
+    ghosted_conversations: int
     # Average visible (non-lowball) offer as a % of list price — tracks the
     # PRD's "sale value vs target price" metric. None until offers exist.
     avg_offer_percent_of_list: float | None

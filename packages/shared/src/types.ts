@@ -94,6 +94,33 @@ export interface Subscription {
 
 export type OfferAction = "accept" | "decline" | "complete" | "report-ghost";
 
+export enum ConversationStatus {
+  Open = "open",
+  Ghosted = "ghosted",
+  Closed = "closed",
+}
+
+export interface Message {
+  id: number;
+  sender_id: number;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface ConversationSummary {
+  id: number;
+  listing_id: number;
+  buyer_id: number;
+  seller_id: number;
+  status: ConversationStatus;
+  created_at: string;
+}
+
+export interface ConversationDetail extends ConversationSummary {
+  messages: Message[];
+}
+
 export interface SellerAnalytics {
   active_listings: number;
   reserved_listings: number;
@@ -103,4 +130,6 @@ export interface SellerAnalytics {
   accepted_offers: number;
   expired_take_tonight_offers: number;
   avg_offer_percent_of_list: number | null;
+  conversations: number;
+  ghosted_conversations: number;
 }

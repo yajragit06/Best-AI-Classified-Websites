@@ -58,7 +58,12 @@ Alembic migrations against `Base.metadata` instead.
 | POST | `/offers/{id}/complete` | ✅ (seller) | Mark sold → rewards both parties' Adab |
 | POST | `/offers/{id}/report-ghost` | ✅ (seller) | Penalise a ghosting buyer's Adab |
 | POST | `/listings/bulk` | ✅ (Business) | Create up to 50 listings in one call |
-| GET | `/analytics/seller` | ✅ (Pro+) | Protection & sales stats (lowballs blocked, offer strength) |
+| GET | `/analytics/seller` | ✅ (Pro+) | Protection & sales stats (lowballs blocked, offer strength, ghosting) |
+| POST | `/listings/{id}/conversations` | ✅ | Start a chat — gated by the quiz + min-Adab, idempotent per buyer |
+| GET | `/conversations` | ✅ | The user's inbox (as buyer or seller) |
+| GET | `/conversations/{id}` | ✅ (participant) | Thread + messages; marks the other party's messages read |
+| POST | `/conversations/{id}/messages` | ✅ (participant) | Send a message; a buyer reply re-opens a ghosted thread |
+| POST | `/conversations/{id}/report-ghost` | ✅ (seller) | Penalise a buyer who went silent after the seller replied |
 | GET | `/subscription` | ✅ | Current plan, limits, Specs Guard access |
 | POST | `/subscription/upgrade` | ✅ | Switch SaaS tier (billing hook point) |
 

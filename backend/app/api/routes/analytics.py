@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.database import get_db
-from app.models.enums import ListingStatus, OfferStatus, SubscriptionTier
+from app.models.conversation import Conversation
+from app.models.enums import ConversationStatus, ListingStatus, OfferStatus, SubscriptionTier
 from app.models.listing import Listing
 from app.models.offer import Offer
 from app.models.user import User
@@ -64,6 +65,14 @@ def seller_analytics(
         else None
     )
 
+    conv_counts = dict(
+        db.execute(
+            select(Conversation.status, func.count())
+            .where(Conversation.seller_id == current.id)
+            .group_by(Conversation.status)
+        ).all()
+    )
+
     return SellerAnalytics(
         active_listings=listing_counts.get(ListingStatus.ACTIVE, 0),
         reserved_listings=listing_counts.get(ListingStatus.RESERVED, 0),
@@ -73,4 +82,6 @@ def seller_analytics(
         accepted_offers=offer_counts.get(OfferStatus.ACCEPTED, 0),
         expired_take_tonight_offers=offer_counts.get(OfferStatus.EXPIRED, 0),
         avg_offer_percent_of_list=avg_pct,
+        conversations=sum(conv_counts.values()),
+        ghosted_conversations=conv_counts.get(ConversationStatus.GHOSTED, 0),
     )

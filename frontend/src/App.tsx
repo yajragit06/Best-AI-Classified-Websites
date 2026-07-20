@@ -5,8 +5,9 @@ import { api } from "./api/client";
 import { Dashboard } from "./pages/Dashboard";
 import { SellerDashboard } from "./pages/SellerDashboard";
 import { PlanPanel } from "./pages/PlanPanel";
+import { MessagesPanel } from "./pages/MessagesPanel";
 
-type Tab = "browse" | "mine" | "plan";
+type Tab = "browse" | "mine" | "messages" | "plan";
 
 export function App() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -65,6 +66,9 @@ export function App() {
             </TabButton>
             <TabButton active={tab === "mine"} onClick={() => setTab("mine")}>
               My Listings
+            </TabButton>
+            <TabButton active={tab === "messages"} onClick={() => setTab("messages")}>
+              Messages
             </TabButton>
             <TabButton active={tab === "plan"} onClick={() => setTab("plan")}>
               Plan
@@ -127,6 +131,8 @@ export function App() {
         <Dashboard />
       ) : tab === "mine" ? (
         <SellerDashboard />
+      ) : tab === "messages" ? (
+        me ? <MessagesPanel meId={me.id} /> : null
       ) : (
         <PlanPanel />
       )}

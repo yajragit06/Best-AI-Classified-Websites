@@ -3,7 +3,10 @@
 // is injected so each platform can persist it however it likes (memory on web,
 // AsyncStorage/SecureStore on mobile).
 import type {
+  ConversationDetail,
+  ConversationSummary,
   Listing,
+  Message,
   Offer,
   OfferAction,
   SellerAnalytics,
@@ -49,6 +52,14 @@ export interface ApiClient {
   upgrade(tier: SubscriptionTier): Promise<Subscription>;
   sellerAnalytics(): Promise<SellerAnalytics>;
   bulkCreateListings(listings: Record<string, unknown>[]): Promise<Listing[]>;
+  startConversation(
+    listingId: number,
+    payload: { quiz_answers?: Record<number, number>; opening_message?: string },
+  ): Promise<ConversationDetail>;
+  myConversations(): Promise<ConversationSummary[]>;
+  getConversation(conversationId: number): Promise<ConversationDetail>;
+  sendMessage(conversationId: number, body: string): Promise<Message>;
+  reportGhostConversation(conversationId: number): Promise<ConversationSummary>;
 }
 
 export function createApiClient(baseUrl: string, tokens: TokenStore = memoryTokenStore()): ApiClient {
@@ -138,6 +149,32 @@ export function createApiClient(baseUrl: string, tokens: TokenStore = memoryToke
 
     bulkCreateListings(listings) {
       return request("/listings/bulk", { method: "POST", body: JSON.stringify({ listings }) });
+    },
+
+    startConversation(listingId, payload) {
+      return request(`/listings/${listingId}/conversations`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    },
+
+    myConversations() {
+      return request("/conversations");
+    },
+
+    getConversation(conversationId) {
+      return request(`/conversations/${conversationId}`);
+    },
+
+    sendMessage(conversationId, body) {
+      return request(`/conversations/${conversationId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ body }),
+      });
+    },
+
+    reportGhostConversation(conversationId) {
+      return request(`/conversations/${conversationId}/report-ghost`, { method: "POST" });
     },
   };
 }

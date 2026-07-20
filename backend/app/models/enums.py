@@ -45,6 +45,12 @@ class OfferStatus(str, enum.Enum):
     EXPIRED = "expired"
 
 
+class ConversationStatus(str, enum.Enum):
+    OPEN = "open"
+    GHOSTED = "ghosted"   # buyer went silent ("Hilang kana tiup angin")
+    CLOSED = "closed"
+
+
 class AdabEventType(str, enum.Enum):
     """Reputation events that adjust a user's Adab score."""
 

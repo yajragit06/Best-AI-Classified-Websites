@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import analytics, auth, listings, offers, subscriptions
+from app.api.routes import analytics, auth, conversations, listings, offers, subscriptions
 from app.config import settings
 from app.database import Base, engine
 
@@ -40,6 +40,7 @@ app.include_router(listings.router)
 app.include_router(offers.router)
 app.include_router(subscriptions.router)
 app.include_router(analytics.router)
+app.include_router(conversations.router)
 
 
 @app.get("/health", tags=["meta"])
