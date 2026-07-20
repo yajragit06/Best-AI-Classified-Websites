@@ -9,6 +9,7 @@ export function CreateListing({ onCreated }: { onCreated: () => void }) {
   const [floorPercent, setFloorPercent] = useState("20");
   const [saleMode, setSaleMode] = useState<SaleMode>(SaleMode.Firm);
   const [district, setDistrict] = useState<District>(District.Bandar);
+  const [negotiation, setNegotiation] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -24,6 +25,7 @@ export function CreateListing({ onCreated }: { onCreated: () => void }) {
         floor_percent: Number(floorPercent),
         sale_mode: saleMode,
         district,
+        negotiation_enabled: negotiation,
       });
       onCreated();
       setTitle("");
@@ -87,6 +89,15 @@ export function CreateListing({ onCreated }: { onCreated: () => void }) {
           </select>
         </div>
       </div>
+      <label style={{ fontWeight: 400, display: "block", marginBottom: 8 }}>
+        <input
+          type="checkbox"
+          checked={negotiation}
+          onChange={(e) => setNegotiation(e.target.checked)}
+          style={{ width: "auto", marginRight: 6 }}
+        />
+        Enable AI Negotiation Bot (Pro) — auto-counters buyer price proposals within your floor
+      </label>
       {error && <div className="warn">{error}</div>}
       <button disabled={busy}>{busy ? "Posting…" : "Post listing"}</button>
     </form>

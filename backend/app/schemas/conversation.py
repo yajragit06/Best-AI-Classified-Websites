@@ -1,5 +1,6 @@
 """Chat schemas."""
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -16,6 +17,10 @@ class ConversationStart(BaseModel):
 
 class MessageCreate(BaseModel):
     body: str = Field(min_length=1, max_length=2000)
+
+
+class NegotiateRequest(BaseModel):
+    proposed_price: Decimal = Field(gt=0, max_digits=10, decimal_places=2)
 
 
 class MessagePublic(BaseModel):
@@ -43,3 +48,9 @@ class ConversationSummary(BaseModel):
 
 class ConversationDetail(ConversationSummary):
     messages: list[MessagePublic]
+
+
+class NegotiateResponse(BaseModel):
+    action: str  # "accept" | "counter"
+    counter_price: Decimal | None
+    message: MessagePublic

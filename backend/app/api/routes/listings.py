@@ -35,13 +35,18 @@ def _active_listing_count(db: Session, seller_id: int) -> int:
     )
 
 
-def _check_floor_allowed(payload: ListingCreate, tier: SubscriptionTier) -> None:
-    """Basic sellers get the standard floor only; custom floors are Pro+."""
+def _check_tier_features(payload: ListingCreate, tier: SubscriptionTier) -> None:
+    """Basic sellers get the standard floor only and no negotiation bot."""
     if tier == SubscriptionTier.BASIC and payload.floor_percent != DEFAULT_FLOOR_PERCENT:
         raise HTTPException(
             status.HTTP_402_PAYMENT_REQUIRED,
             f"The Basic plan uses the standard {DEFAULT_FLOOR_PERCENT:.0f}% price floor. "
             "Upgrade to Pro to set a custom Hard Floor.",
+        )
+    if tier == SubscriptionTier.BASIC and payload.negotiation_enabled:
+        raise HTTPException(
+            status.HTTP_402_PAYMENT_REQUIRED,
+            "The AI Negotiation Bot is a Pro feature.",
         )
 
 
@@ -59,6 +64,7 @@ def _build_listing(payload: ListingCreate, seller_id: int, sub: Subscription | N
         district=payload.district,
         delivery_available=payload.delivery_available,
         min_buyer_adab=payload.min_buyer_adab,
+        negotiation_enabled=payload.negotiation_enabled,
     )
 
     # --- Product Knowledge Gateway questions ------------------------------
@@ -117,7 +123,7 @@ def create_listing(
             f"Your {tier.value} plan allows up to {limit} active listings. "
             "Upgrade to Pro for unlimited listings.",
         )
-    _check_floor_allowed(payload, tier)
+    _check_tier_features(payload, tier)
 
     listing = _build_listing(payload, current.id, sub)
     db.add(listing)

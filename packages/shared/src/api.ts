@@ -60,6 +60,10 @@ export interface ApiClient {
   getConversation(conversationId: number): Promise<ConversationDetail>;
   sendMessage(conversationId: number, body: string): Promise<Message>;
   reportGhostConversation(conversationId: number): Promise<ConversationSummary>;
+  negotiate(
+    conversationId: number,
+    proposedPrice: number,
+  ): Promise<{ action: "accept" | "counter"; counter_price: string | null; message: Message }>;
 }
 
 export function createApiClient(baseUrl: string, tokens: TokenStore = memoryTokenStore()): ApiClient {
@@ -175,6 +179,13 @@ export function createApiClient(baseUrl: string, tokens: TokenStore = memoryToke
 
     reportGhostConversation(conversationId) {
       return request(`/conversations/${conversationId}/report-ghost`, { method: "POST" });
+    },
+
+    negotiate(conversationId, proposedPrice) {
+      return request(`/conversations/${conversationId}/negotiate`, {
+        method: "POST",
+        body: JSON.stringify({ proposed_price: proposedPrice }),
+      });
     },
   };
 }

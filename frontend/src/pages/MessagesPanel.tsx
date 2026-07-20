@@ -77,6 +77,7 @@ function Thread({
   onChanged: () => void;
 }) {
   const [body, setBody] = useState("");
+  const [price, setPrice] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -114,6 +115,24 @@ function Thread({
       setError((err as Error).message);
     }
   }
+
+  async function propose(e: React.FormEvent) {
+    e.preventDefault();
+    if (!price) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.negotiate(conv.id, Number(price));
+      setPrice("");
+      onChanged();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const isBuyer = meId === conv.buyer_id;
 
   return (
     <div className="card">
@@ -155,15 +174,33 @@ function Thread({
       </div>
       {error && <div className="warn">{error}</div>}
       {conv.status !== ConversationStatus.Closed && (
-        <form onSubmit={send} style={{ display: "flex", gap: 8 }}>
-          <input
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Type a message…"
-            style={{ margin: 0 }}
-          />
-          <button disabled={busy}>Send</button>
-        </form>
+        <>
+          <form onSubmit={send} style={{ display: "flex", gap: 8 }}>
+            <input
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="Type a message…"
+              style={{ margin: 0 }}
+            />
+            <button disabled={busy}>Send</button>
+          </form>
+          {isBuyer && (
+            <form onSubmit={propose} style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="Propose a price (B$) — AI bot replies"
+                style={{ margin: 0 }}
+              />
+              <button className="secondary" disabled={busy}>
+                Propose
+              </button>
+            </form>
+          )}
+        </>
       )}
     </div>
   );

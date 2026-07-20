@@ -68,6 +68,10 @@ class Listing(Base):
     # Buyers below this combined Adab score cannot initiate a chat/offer.
     min_buyer_adab: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
 
+    # --- AI Negotiation Bot (Pro+) ----------------------------------------
+    # When on, the bot auto-counters buyer price proposals within the floor.
+    negotiation_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
     status: Mapped[ListingStatus] = mapped_column(
         Enum(ListingStatus, native_enum=False), nullable=False, default=ListingStatus.ACTIVE
     )

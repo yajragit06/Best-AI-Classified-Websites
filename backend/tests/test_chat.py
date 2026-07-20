@@ -126,6 +126,56 @@ def test_report_ghost_requires_seller_reply_then_penalises(client):
     assert buyer_me["reliability_score"] < 70.0
 
 
+def test_negotiation_bot_counters_in_thread(client):
+    seller = auth_headers(client, "seller@example.com")
+    buyer = auth_headers(client, "buyer@example.com")
+    # Enabling the bot requires Pro.
+    assert (
+        client.post("/listings", json={**LISTING, "negotiation_enabled": True}, headers=seller).status_code
+        == 402
+    )
+    client.post("/subscription/upgrade", json={"tier": "pro"}, headers=seller)
+    lid = _listing(client, seller, negotiation_enabled=True, auto_generate_questions=False)["id"]
+    cid = client.post(
+        f"/listings/{lid}/conversations", json={"opening_message": "hi"}, headers=buyer
+    ).json()["id"]
+
+    # Buyer proposes a lowball; bot counters above the (hidden) floor, in-thread.
+    res = client.post(f"/conversations/{cid}/negotiate", json={"proposed_price": 40}, headers=buyer)
+    assert res.status_code == 200
+    body = res.json()
+    assert body["action"] == "counter"
+    assert float(body["counter_price"]) == 90.0
+    assert "🤖" in body["message"]["body"]
+    assert body["message"]["sender_id"] != buyer  # posted as the seller/bot
+
+    # Buyer meeting the ask is accepted.
+    ok = client.post(f"/conversations/{cid}/negotiate", json={"proposed_price": 100}, headers=buyer)
+    assert ok.json()["action"] == "accept"
+
+
+def test_negotiate_blocked_when_bot_disabled(client):
+    seller = auth_headers(client, "seller@example.com")
+    buyer = auth_headers(client, "buyer@example.com")
+    lid = _listing(client, seller)["id"]  # negotiation not enabled
+    cid = client.post(f"/listings/{lid}/conversations", json={}, headers=buyer).json()["id"]
+    res = client.post(f"/conversations/{cid}/negotiate", json={"proposed_price": 50}, headers=buyer)
+    assert res.status_code == 409
+
+
+def test_seller_cannot_negotiate_against_self(client):
+    seller = auth_headers(client, "seller@example.com")
+    buyer = auth_headers(client, "buyer@example.com")
+    client.post("/subscription/upgrade", json={"tier": "pro"}, headers=seller)
+    lid = _listing(client, seller, negotiation_enabled=True, auto_generate_questions=False)["id"]
+    cid = client.post(f"/listings/{lid}/conversations", json={}, headers=buyer).json()["id"]
+    # The seller is a participant but only the buyer may propose a price.
+    assert (
+        client.post(f"/conversations/{cid}/negotiate", json={"proposed_price": 90}, headers=seller).status_code
+        == 403
+    )
+
+
 def test_buyer_reply_reopens_ghosted_conversation(client):
     seller = auth_headers(client, "seller@example.com")
     buyer = auth_headers(client, "buyer@example.com")

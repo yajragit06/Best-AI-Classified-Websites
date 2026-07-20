@@ -55,6 +55,7 @@ class ListingCreate(BaseModel):
     district: District = District.BANDAR
     delivery_available: bool = True
     min_buyer_adab: float = Field(default=0.0, ge=0, le=100)
+    negotiation_enabled: bool = False
     # Seller-authored questions. If empty and Specs Guard is available, the
     # AI will generate them.
     knowledge_questions: list[KnowledgeQuestionIn] = Field(default_factory=list)
@@ -83,6 +84,7 @@ class ListingPublic(BaseModel):
     district: District
     delivery_available: bool
     min_buyer_adab: float
+    negotiation_enabled: bool
     status: ListingStatus
     created_at: datetime
     knowledge_questions: list[KnowledgeQuestionPublic]

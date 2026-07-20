@@ -8,9 +8,15 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core import adab
 from app.core.knowledge_gateway import grade_quiz
+from app.core.negotiation import compose_reply, negotiate
 from app.database import get_db
 from app.models.conversation import Conversation, Message
-from app.models.enums import AdabEventType, ConversationStatus, ListingStatus
+from app.models.enums import (
+    AdabEventType,
+    ConversationStatus,
+    ListingStatus,
+    SubscriptionTier,
+)
 from app.models.listing import Listing
 from app.models.user import User
 from app.schemas.conversation import (
@@ -19,6 +25,8 @@ from app.schemas.conversation import (
     ConversationSummary,
     MessageCreate,
     MessagePublic,
+    NegotiateRequest,
+    NegotiateResponse,
 )
 
 router = APIRouter(tags=["chat"])
@@ -145,6 +153,57 @@ def send_message(
     db.commit()
     db.refresh(message)
     return message
+
+
+@router.post("/conversations/{conv_id}/negotiate", response_model=NegotiateResponse)
+def negotiate_price(
+    conv_id: int,
+    payload: NegotiateRequest,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+) -> NegotiateResponse:
+    """Buyer proposes a price; the seller's AI bot auto-replies in the thread.
+
+    Requires the listing's negotiation bot to be enabled and the seller to be on
+    a plan that includes it. The bot's counter is computed deterministically and
+    can never dip below the seller's floor, so the LLM (if any) only phrases it.
+    """
+    conv = _get_participant_conversation(conv_id, db, current)
+    if current.id != conv.buyer_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the buyer can propose a price")
+    if conv.status == ConversationStatus.CLOSED:
+        raise HTTPException(status.HTTP_409_CONFLICT, "This conversation is closed")
+
+    listing = db.get(Listing, conv.listing_id)
+    seller_sub = listing.seller.subscription if listing else None
+    if (
+        listing is None
+        or not listing.negotiation_enabled
+        or seller_sub is None
+        or seller_sub.tier == SubscriptionTier.BASIC
+    ):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "The AI Negotiation Bot isn't enabled for this listing.",
+        )
+
+    result = negotiate(listing, float(payload.proposed_price), is_take_tonight=False)
+    # The bot speaks for the seller in the thread.
+    bot_message = Message(
+        conversation_id=conv.id,
+        sender_id=conv.seller_id,
+        body=compose_reply(result, float(payload.proposed_price)),
+    )
+    db.add(bot_message)
+    if conv.status == ConversationStatus.GHOSTED:
+        conv.status = ConversationStatus.OPEN
+    db.commit()
+    db.refresh(bot_message)
+    return NegotiateResponse(
+        action=result.action,
+        counter_price=result.counter_price,
+        message=bot_message,
+    )
 
 
 @router.post("/conversations/{conv_id}/report-ghost", response_model=ConversationSummary)

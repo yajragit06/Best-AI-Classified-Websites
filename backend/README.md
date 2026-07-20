@@ -64,6 +64,7 @@ Alembic migrations against `Base.metadata` instead.
 | GET | `/conversations/{id}` | ✅ (participant) | Thread + messages; marks the other party's messages read |
 | POST | `/conversations/{id}/messages` | ✅ (participant) | Send a message; a buyer reply re-opens a ghosted thread |
 | POST | `/conversations/{id}/report-ghost` | ✅ (seller) | Penalise a buyer who went silent after the seller replied |
+| POST | `/conversations/{id}/negotiate` | ✅ (buyer) | Propose a price; the seller's AI bot auto-counters in-thread (Pro, bot enabled) |
 | GET | `/subscription` | ✅ | Current plan, limits, Specs Guard access |
 | POST | `/subscription/upgrade` | ✅ | Switch SaaS tier (billing hook point) |
 
